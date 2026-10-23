@@ -84,7 +84,7 @@ footer{margin:20px auto 0;color:#66869d;font-size:9px;letter-spacing:.16em}
     </div>
   </div>
   <button class="stop" id="stopButton" type="button">■ &nbsp; FRENAR / DETENER</button>
-  <p class="tip">Mantén el dedo sobre el joystick para moverte.<br>Al soltarlo, el robot se detendrá automáticamente.</p>
+  <p class="tip">Mantén el dedo sobre el joystick para moverte.<br>Al soltarlo, el robot se detendrá automáticamente. <br> Diseñado por: Samuel Villanueva C. (© - 2026)</p>
 </main>
 <footer>CAR SOCCER · CONTROL INALÁMBRICO · ESP32</footer>
 <script>
