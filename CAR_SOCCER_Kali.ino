@@ -2,11 +2,15 @@
 #include <WebServer.h>
 
 // ===== WIFI =====
-const char* ssid = "iPhone";
-const char* password = "villanueva";
+const char* ssid = "Robo1";
+const char* password = "123456789";
 
 // ===== SERVIDOR =====
 WebServer server(80);
+
+// ===== SEGURIDAD: PARADA AUTOMATICA =====
+volatile unsigned long ultimaOrdenMovimiento = 0;
+const unsigned long TIEMPO_MAXIMO_SIN_ORDEN = 700; // ms
 
 // ===== MOTORES L298N =====
 const int IN1 = 16;
@@ -94,55 +98,169 @@ footer{margin:24px auto 0;color:#8b9bad;font-size:10px;letter-spacing:.04em;line
 <footer>CAR SOCCER · CONTROL INALÁMBRICO · ESP32<br><span class="credit">Diseñado por: Samuel Villanueva C. (© - 2026)</span></footer>
 <script>
 (function(){
-  const pad=document.getElementById('joystick');
-  const stick=document.getElementById('stick');
-  const status=document.getElementById('status');
-  const indicator=document.getElementById('indicator');
-  const stopButton=document.getElementById('stopButton');
-  let pointerId=null, current='stop', lastSent=0;
-  const labels={forward:'AVANZANDO',backward:'RETROCEDIENDO',left:'GIRO A LA IZQUIERDA',right:'GIRO A LA DERECHA',stop:'MOTORES DETENIDOS'};
-  function sendCommand(command){
-    if(command===current && Date.now()-lastSent<120)return;
-    current=command;lastSent=Date.now();
-    status.textContent=labels[command]||'SISTEMA EN ESPERA';
-    indicator.style.background=command==='stop'?'#b8ff5a':'#35e7ff';
-    indicator.style.boxShadow=command==='stop'?'0 0 10px rgba(184,255,90,.7)':'0 0 10px rgba(53,231,255,.8)';
-    fetch('/'+command,{method:'GET',cache:'no-store',keepalive:true}).catch(function(){
-      status.textContent='SIN RESPUESTA DEL ROBOT';
-      indicator.style.background='#ff4768';
-      indicator.style.boxShadow='0 0 10px rgba(255,71,104,.7)';
-    });
+  const pad = document.getElementById('joystick');
+  const stick = document.getElementById('stick');
+  const status = document.getElementById('status');
+  const indicator = document.getElementById('indicator');
+  const stopButton = document.getElementById('stopButton');
+
+  let pointerId = null;
+  let current = 'stop';
+  let lastSent = 0;
+  let heartbeat = null;
+  let requestChain = Promise.resolve();
+
+  const labels = {
+    forward: 'AVANZANDO',
+    backward: 'RETROCEDIENDO',
+    left: 'GIRO A LA IZQUIERDA',
+    right: 'GIRO A LA DERECHA',
+    stop: 'MOTORES DETENIDOS'
+  };
+
+  // Mantiene las solicitudes en orden para que una orden antigua
+  // no llegue después de la orden de detener.
+  function sendCommand(command, force) {
+    const now = Date.now();
+    if (!force && command === current && now - lastSent < 180) return;
+
+    current = command;
+    lastSent = now;
+
+    status.textContent = labels[command] || 'SISTEMA EN ESPERA';
+    indicator.style.background = command === 'stop' ? '#b8ff5a' : '#35e7ff';
+    indicator.style.boxShadow = command === 'stop'
+      ? '0 0 10px rgba(184,255,90,.7)'
+      : '0 0 10px rgba(53,231,255,.8)';
+
+    requestChain = requestChain
+      .catch(function(){})
+      .then(function(){
+        return fetch('/' + command, {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'same-origin'
+        });
+      })
+      .catch(function(){
+        status.textContent = 'SIN RESPUESTA DEL ROBOT';
+        indicator.style.background = '#ff4768';
+        indicator.style.boxShadow = '0 0 10px rgba(255,71,104,.7)';
+      });
   }
-  function centerStick(){stick.style.left='50%';stick.style.top='50%';stick.classList.remove('active')}
-  function stop(){pointerId=null;centerStick();sendCommand('stop')}
-  function move(event){
-    const rect=pad.getBoundingClientRect();
-    const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
-    let dx=event.clientX-cx,dy=event.clientY-cy;
-    const max=rect.width*0.31,dist=Math.hypot(dx,dy);
-    if(dist>max){dx=dx/dist*max;dy=dy/dist*max}
-    stick.style.left='calc(50% + '+dx+'px)';
-    stick.style.top='calc(50% + '+dy+'px)';
+
+  function centerStick() {
+    stick.style.left = '50%';
+    stick.style.top = '50%';
+    stick.classList.remove('active');
+  }
+
+  function stopHeartbeat() {
+    if (heartbeat !== null) {
+      clearInterval(heartbeat);
+      heartbeat = null;
+    }
+  }
+
+  function stop() {
+    stopHeartbeat();
+    pointerId = null;
+    centerStick();
+    sendCommand('stop', true);
+  }
+
+  function move(event) {
+    const rect = pad.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    let dx = event.clientX - cx;
+    let dy = event.clientY - cy;
+    const max = rect.width * 0.31;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist > max) {
+      dx = dx / dist * max;
+      dy = dy / dist * max;
+    }
+
+    stick.style.left = 'calc(50% + ' + dx + 'px)';
+    stick.style.top = 'calc(50% + ' + dy + 'px)';
     stick.classList.add('active');
-    if(Math.hypot(dx,dy)<max*0.22){sendCommand('stop');return}
-    const angle=Math.atan2(dy,dx)*180/Math.PI;
-    if(angle>=-45&&angle<45)sendCommand('right');
-    else if(angle>=45&&angle<135)sendCommand('backward');
-    else if(angle>=-135&&angle< -45)sendCommand('forward');
-    else sendCommand('left');
+
+    if (Math.hypot(dx, dy) < max * 0.22) {
+      sendCommand('stop', true);
+      return;
+    }
+
+    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+    let command;
+
+    if (angle >= -45 && angle < 45) command = 'right';
+    else if (angle >= 45 && angle < 135) command = 'backward';
+    else if (angle >= -135 && angle < -45) command = 'forward';
+    else command = 'left';
+
+    sendCommand(command, false);
   }
-  pad.addEventListener('pointerdown',function(e){
-    e.preventDefault();pointerId=e.pointerId;
-    try{pad.setPointerCapture(pointerId)}catch(_){}
+
+  pad.addEventListener('pointerdown', function(e) {
+    e.preventDefault();
+    if (pointerId !== null) stop();
+    pointerId = e.pointerId;
+
+    try { pad.setPointerCapture(pointerId); } catch (_) {}
     move(e);
+
+    // Repite la última dirección mientras el usuario mantiene presionado.
+    // Si deja de llegar el heartbeat, el ESP32 también detendrá los motores.
+    stopHeartbeat();
+    heartbeat = setInterval(function() {
+      if (pointerId !== null && current !== 'stop') {
+        sendCommand(current, true);
+      }
+    }, 250);
   });
-  pad.addEventListener('pointermove',function(e){if(e.pointerId===pointerId){e.preventDefault();move(e)}});
-  pad.addEventListener('pointerup',function(e){if(e.pointerId===pointerId)stop()});
-  pad.addEventListener('pointercancel',function(e){if(e.pointerId===pointerId)stop()});
-  pad.addEventListener('lostpointercapture',function(){if(pointerId!==null)stop()});
-  stopButton.addEventListener('click',stop);
-  document.addEventListener('visibilitychange',function(){if(document.hidden)stop()});
-  window.addEventListener('pagehide',function(){fetch('/stop',{method:'GET',keepalive:true}).catch(function(){})});
+
+  pad.addEventListener('pointermove', function(e) {
+    if (e.pointerId === pointerId) {
+      e.preventDefault();
+      move(e);
+    }
+  });
+
+  pad.addEventListener('pointerup', function(e) {
+    if (e.pointerId === pointerId) stop();
+  });
+
+  pad.addEventListener('pointercancel', function(e) {
+    if (e.pointerId === pointerId) stop();
+  });
+
+  pad.addEventListener('lostpointercapture', function() {
+    if (pointerId !== null) stop();
+  });
+
+  // Respaldo para navegadores móviles y cuando se pierde el foco.
+  window.addEventListener('pointerup', function() {
+    if (pointerId !== null) stop();
+  });
+  window.addEventListener('blur', function() {
+    if (pointerId !== null) stop();
+  });
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) stop();
+  });
+
+  stopButton.addEventListener('click', stop);
+
+  window.addEventListener('pagehide', function() {
+    stopHeartbeat();
+    fetch('/stop', {
+      method: 'GET',
+      cache: 'no-store',
+      keepalive: true
+    }).catch(function(){});
+  });
 })();
 </script>
 </body>
@@ -193,6 +311,7 @@ void handleRoot() {
 // ===== CONFIGURACION =====
 void setup() {
   Serial.begin(115200);
+  ultimaOrdenMovimiento = millis();
 
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
@@ -232,26 +351,31 @@ void setup() {
   server.on("/", HTTP_GET, handleRoot);
 
   server.on("/forward", HTTP_GET, []() {
+    ultimaOrdenMovimiento = millis();
     moveForward();
     server.send(200, "text/plain", "FORWARD");
   });
 
   server.on("/backward", HTTP_GET, []() {
+    ultimaOrdenMovimiento = millis();
     moveBackward();
     server.send(200, "text/plain", "BACKWARD");
   });
 
   server.on("/left", HTTP_GET, []() {
+    ultimaOrdenMovimiento = millis();
     turnLeft();
     server.send(200, "text/plain", "LEFT");
   });
 
   server.on("/right", HTTP_GET, []() {
+    ultimaOrdenMovimiento = millis();
     turnRight();
     server.send(200, "text/plain", "RIGHT");
   });
 
   server.on("/stop", HTTP_GET, []() {
+    ultimaOrdenMovimiento = millis();
     stopMotors();
     server.send(200, "text/plain", "STOP");
   });
@@ -263,4 +387,10 @@ void setup() {
 // ===== BUCLE PRINCIPAL =====
 void loop() {
   server.handleClient();
+
+  // Parada de seguridad: si deja de llegar la señal del joystick,
+  // apaga los motores aunque el navegador o el Wi-Fi fallen.
+  if (millis() - ultimaOrdenMovimiento > TIEMPO_MAXIMO_SIN_ORDEN) {
+    stopMotors();
+  }
 }
