@@ -1,22 +1,18 @@
 #include <WiFi.h>
 #include <WebServer.h>
 
-// ===== CONFIGURACIÓN WIFI (MODO PUNTO DE ACCESO / LOCALHOST) =====
-const char* ssid = "CAR_SOCCER_KALI";
-const char* password = "123456789";
+// ===== CONFIGURACIÓN WIFI (MODO PUNTO DE ACCESO) =====
+const char* ssid = "CAR_sam";
+const char* password = "123456789"; // Mínimo 8 caracteres
+const int wifi_channel = 6;         // Canal 6 para evitar interferencias
 
-// Configuración de IP Fija Exclusiva (192.168.50.1)
+// Configuración de IP Fija
 IPAddress local_IP(192, 168, 50, 1);
 IPAddress gateway(192, 168, 50, 1);
 IPAddress subnet(255, 255, 255, 0);
 
-// ===== SERVIDOR =====
+// ===== SERVIDOR WEB =====
 WebServer server(80);
-
-// ===== SEGURIDAD: PARADA AUTOMATICA =====
-volatile unsigned long ultimaOrdenMovimiento = 0;
-const unsigned long TIEMPO_MAXIMO_SIN_ORDEN = 700; // ms
-bool motoresEnMovimiento = false;
 
 // ===== MOTORES L298N =====
 const int IN1 = 16;
@@ -24,464 +20,200 @@ const int IN2 = 17;
 const int IN3 = 18;
 const int IN4 = 19;
 
-// ===== LED =====
+// ===== LED DE ESTADO =====
 const int LED_AZUL = 2;
 
-// ===== PAGINA WEB =====
+// ===== PÁGINA WEB MINIMALISTA (AZUL OSCURO) =====
 const char html_page[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<meta name="theme-color" content="#071321">
-<title>CAR SOCCER | Control ESP32</title>
+<meta name="theme-color" content="#020813">
+<title>CAR SAM</title>
 <style>
-:root{--cyan:#54baff;--blue:#1678d3;--ice:#c4e7ff;--red:#ff405d;--panel:rgba(8,10,16,.91)}
+:root{--cyan:#35e7ff;--lime:#b8ff5a;--red:#ff4768}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html{min-height:100%;background:#030407}
-body{margin:0;min-height:100vh;padding:24px 14px 20px;font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#edf5ff;text-align:center;overflow-x:hidden;background:linear-gradient(135deg,#030407,#11151d,#05070b,#10131a);background-size:300% 300%;animation:darkPulse 9s ease-in-out infinite;user-select:none;-webkit-user-select:none}
-@keyframes darkPulse{0%,100%{background-position:0% 50%;filter:brightness(.78)}50%{background-position:100% 50%;filter:brightness(1.12)}}
-body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.24;background-image:linear-gradient(rgba(84,186,255,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(84,186,255,.12) 1px,transparent 1px);background-size:34px 34px;mask-image:linear-gradient(to bottom,black,transparent 92%);z-index:0}
-.cyber-mark{position:fixed;z-index:0;left:50%;top:47%;transform:translate(-50%,-50%);width:min(92vw,620px);height:auto;opacity:.075;pointer-events:none;filter:drop-shadow(0 0 24px #1687dd);animation:markPulse 5s ease-in-out infinite}
-@keyframes markPulse{0%,100%{opacity:.045;filter:drop-shadow(0 0 10px #1687dd)}50%{opacity:.13;filter:drop-shadow(0 0 32px #1687dd)}}
-header,main,footer{position:relative;z-index:1}
-.brand-icon{width:74px;height:74px;margin:0 auto 13px;display:grid;place-items:center;border:1px solid rgba(84,186,255,.55);border-radius:22px;background:linear-gradient(145deg,#182433,#05070b);box-shadow:0 0 25px rgba(22,120,211,.2),inset 0 0 18px rgba(84,186,255,.08);color:var(--ice);font-size:35px;font-weight:900;transform:rotate(-3deg)}
-h1{margin:0;font-size:clamp(34px,8vw,52px);line-height:1.08;font-weight:950;letter-spacing:.11em;color:#f4f7fb;text-shadow:0 0 12px rgba(84,186,255,.35),0 3px 0 #05070b}
-h1 span{color:var(--cyan);text-shadow:0 0 18px rgba(84,186,255,.6)}
-.subtitle{margin:11px 0 0;font-size:10px;font-weight:800;letter-spacing:.24em;color:#8eb9dc}
-.chip{display:inline-flex;align-items:center;gap:7px;margin-top:15px;padding:7px 12px;border:1px solid rgba(84,186,255,.32);border-radius:99px;background:rgba(20,70,112,.16);font-size:10px;font-weight:800;letter-spacing:.13em;color:#a8d8ff}
-.dot{width:7px;height:7px;border-radius:50%;background:#75c7ff;box-shadow:0 0 9px #75c7ff;animation:dotPulse 1.8s ease-in-out infinite}
-@keyframes dotPulse{0%,100%{opacity:.45}50%{opacity:1}}
-.panel{width:min(100%,440px);margin:23px auto 0;padding:20px 16px 18px;border:1px solid rgba(84,186,255,.25);border-radius:25px;background:linear-gradient(145deg,rgba(15,20,29,.96),rgba(3,5,9,.97));box-shadow:0 18px 50px rgba(0,0,0,.55),0 0 30px rgba(22,120,211,.07),inset 0 1px rgba(255,255,255,.05)}
-.panel-title{margin:0 0 7px;font-size:12px;font-weight:900;letter-spacing:.2em;color:#e8f5ff}
-.panel-sub{margin:0 0 16px;font-size:11px;color:#8799ad}
-.status{min-height:42px;display:flex;align-items:center;justify-content:center;gap:9px;margin:0 auto 16px;padding:10px 12px;border:1px solid rgba(84,186,255,.19);border-radius:12px;background:rgba(0,0,0,.38);color:var(--cyan);font-size:12px;font-weight:850;letter-spacing:.08em}
-.status-indicator{width:8px;height:8px;flex:0 0 auto;border-radius:50%;background:#b8ff5a;box-shadow:0 0 10px rgba(184,255,90,.7)}
-.joystick-wrap{display:flex;justify-content:center;align-items:center;padding:4px 0 10px}
-.joystick{position:relative;width:min(70vw,260px);height:min(70vw,260px);max-width:260px;max-height:260px;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:50%;border:1px solid rgba(84,186,255,.58);background:radial-gradient(circle,#172b40 0%,#0d1b2a 47%,#080e17 70%,#03060b 100%);box-shadow:0 0 0 8px rgba(22,120,211,.05),0 0 35px rgba(22,120,211,.13),inset 0 0 25px rgba(0,0,0,.8);cursor:grab}
-.joystick:before,.joystick:after{content:"";position:absolute;pointer-events:none;background:rgba(84,186,255,.15)}
-.joystick:before{width:1px;height:86%;left:50%;top:7%}.joystick:after{height:1px;width:86%;top:50%;left:7%}
-.direction{position:absolute;z-index:1;color:#a1bfd9;font-size:18px;font-weight:900;line-height:1;text-shadow:0 0 8px rgba(84,186,255,.3);pointer-events:none}
-.direction.up{top:12px;left:50%;transform:translateX(-50%)}.direction.down{bottom:12px;left:50%;transform:translateX(-50%)}.direction.left{left:12px;top:50%;transform:translateY(-50%)}.direction.right{right:12px;top:50%;transform:translateY(-50%)}
-.stick{position:absolute;z-index:2;left:50%;top:50%;width:34%;height:34%;transform:translate(-50%,-50%);border-radius:50%;border:2px solid rgba(196,231,255,.85);background:radial-gradient(circle at 32% 25%,#d2efff 0%,#65bfff 20%,#1678d3 60%,#073a69 100%);box-shadow:0 0 0 7px rgba(84,186,255,.07),0 9px 20px rgba(0,0,0,.55),inset 0 2px 5px rgba(255,255,255,.55);transition:box-shadow .12s;pointer-events:none}
-.stick:after{content:"";position:absolute;inset:28%;border:1px solid rgba(255,255,255,.5);border-radius:50%}
-.stick.active{box-shadow:0 0 0 9px rgba(84,186,255,.16),0 0 28px rgba(84,186,255,.65),0 9px 20px rgba(0,0,0,.55),inset 0 2px 5px rgba(255,255,255,.55)}
-.stop{display:block;width:100%;margin:8px auto 0;padding:14px;border:1px solid rgba(255,64,93,.72);border-radius:13px;background:linear-gradient(135deg,#7d1d30,#300b14);color:#fff;font-size:13px;font-weight:950;letter-spacing:.16em;box-shadow:0 5px 0 #1d070c,0 10px 20px rgba(0,0,0,.3);touch-action:manipulation;cursor:pointer}
-.stop:active{transform:translateY(3px);box-shadow:0 2px 0 #1d070c}
-.tip{margin:16px 2px 0;color:#8796a9;font-size:11px;line-height:1.65}
-footer{margin:24px auto 0;color:#8b9bad;font-size:10px;letter-spacing:.04em;line-height:1.7}footer .credit{color:#c0d2e4;letter-spacing:.06em}
-@media(min-width:600px){body{padding-top:28px}.panel{padding:24px}.brand-icon{width:82px;height:82px}}
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+html{min-height:100%;background:#020813}
+body{margin:0;min-height:100vh;padding:25px 14px;font-family:system-ui,sans-serif;color:#effaff;text-align:center;background:radial-gradient(ellipse at 50% 0%,#0a224a 0%,#041026 50%,#020813 100%);user-select:none;-webkit-user-select:none}
+h1{margin:0 0 15px;font-size:42px;font-weight:900;letter-spacing:.1em;color:#fff;text-shadow:0 0 15px rgba(53,231,255,.5)}
+h1 span{color:var(--cyan)}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border:1px solid rgba(184,255,90,.3);border-radius:99px;background:rgba(100,150,50,.1);font-size:11px;font-weight:bold;letter-spacing:.1em;color:var(--lime)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--lime);box-shadow:0 0 8px var(--lime)}
+.panel{width:min(100%,400px);margin:25px auto 0;padding:25px 20px;border:1px solid rgba(53,231,255,.2);border-radius:20px;background:rgba(6,16,36,.8);box-shadow:0 15px 40px rgba(0,0,0,.5)}
+.status{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:20px;padding:12px;border-radius:12px;background:rgba(0,0,0,.3);color:var(--cyan);font-size:14px;font-weight:bold;letter-spacing:.1em}
+.status-indicator{width:10px;height:10px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+.joystick-wrap{display:flex;justify-content:center;padding:10px 0 20px}
+.joystick{position:relative;width:240px;height:240px;border-radius:50%;border:2px solid rgba(53,231,255,.4);background:radial-gradient(circle,#0a224a 0%,#041026 100%);box-shadow:inset 0 0 20px rgba(0,0,0,.8);cursor:grab}
+.joystick:before,.joystick:after{content:"";position:absolute;background:rgba(53,231,255,.1)}
+.joystick:before{width:1px;height:100%;left:50%;top:0}
+.joystick:after{height:1px;width:100%;top:50%;left:0}
+.stick{position:absolute;z-index:2;left:120px;top:120px;width:76px;height:76px;margin-left:-38px;margin-top:-38px;border-radius:50%;border:2px solid #8df6ff;background:radial-gradient(circle at 30% 30%,#35e7ff 0%,#0877bd 100%);box-shadow:0 5px 15px rgba(0,0,0,.5);pointer-events:none}
+.stick.active{box-shadow:0 0 20px rgba(53,231,255,.6),0 5px 15px rgba(0,0,0,.5)}
+.stop{width:100%;padding:16px;border:none;border-radius:12px;background:#d32f2f;color:#fff;font-size:16px;font-weight:900;letter-spacing:.15em;box-shadow:0 6px 0 #9a0007;cursor:pointer}
+.stop:active{transform:translateY(4px);box-shadow:0 2px 0 #9a0007}
 </style>
 </head>
 <body>
-<svg class="cyber-mark" viewBox="0 0 600 600" aria-hidden="true" focusable="false">
-  <path fill="currentColor" d="M300 42 354 88 411 76 438 125 492 145 474 199 518 240 480 284 493 337 443 361 426 416 369 410 330 459 300 430 270 459 231 410 174 416 157 361 107 337 120 284 82 240 126 199 108 145 162 125 189 76 246 88Z" opacity=".24"/>
-  <path d="M166 190 226 154 285 172 326 146 388 166 428 207 388 219 355 203 333 229 365 248 410 242 382 280 337 291 312 327 338 350 378 342 353 380 300 398 247 380 222 342 262 350 288 327 263 291 218 280 190 242 235 248 267 229 245 203 212 219Z" fill="none" stroke="currentColor" stroke-width="13" stroke-linejoin="round" stroke-linecap="round"/>
-  <path d="M226 154 206 116 252 135 285 172M388 166 418 130 421 184M337 291 382 280 410 300 381 312M247 380 224 419 276 408 300 398" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round"/>
-  <circle cx="302" cy="224" r="8" fill="currentColor"/>
-  <text x="300" y="515" text-anchor="middle" fill="currentColor" font-family="Arial,sans-serif" font-size="54" font-weight="900" letter-spacing="13">KALI MODE</text>
-  <text x="300" y="550" text-anchor="middle" fill="currentColor" font-family="monospace" font-size="16" letter-spacing="5">CYBER CONTROL SYSTEM</text>
-</svg>
 <header>
-  <div class="brand-icon" aria-hidden="true">&gt;_</div>
-  <h1>CAR <span>SOCCER</span></h1>
-  <div class="subtitle">SISTEMA DE CONTROL ROBÓTICO</div>
-  <div class="chip"><i class="dot"></i> IP FIJA: 192.168.50.1</div>
+  <h1>CAR <span>SAM</span></h1>
+  <div class="chip"><span class="dot"></span><span>IP: 192.168.50.1</span></div>
 </header>
-<main class="panel">
-  <h2 class="panel-title">MANDO DIRECCIONAL</h2>
-  <p class="panel-sub">Desliza el mando hacia la dirección deseada</p>
-  <div class="status" role="status" aria-live="polite"><span class="status-indicator" id="indicator"></span><span id="status">MOTORES DETENIDOS</span></div>
-  <div class="joystick-wrap">
-    <div class="joystick" id="joystick" role="application" aria-label="Joystick de movimiento">
-      <span class="direction up">▲</span><span class="direction left">◀</span><span class="direction right">▶</span><span class="direction down">▼</span>
-      <div class="stick" id="stick"></div>
+<main>
+  <div class="panel">
+    <div class="status">
+      <span class="status-indicator" id="statusDot"></span>
+      <span id="statusText">DETENIDO</span>
     </div>
+    <div class="joystick-wrap">
+      <div class="joystick" id="joystick">
+        <div class="stick" id="stick"></div>
+      </div>
+    </div>
+    <button class="stop" id="btnStop">FRENAR</button>
   </div>
-  <button class="stop" id="stopButton" type="button">■ &nbsp; FRENAR / DETENER</button>
-  <p class="tip">Mantén el dedo sobre el joystick para moverte.<br>Al soltarlo, el robot se detendrá automáticamente.</p>
 </main>
-<footer>CAR SOCCER · CONTROL INALÁMBRICO · ESP32<br><span class="credit">Diseñado por: Samuel Villanueva C. (© - 2026)</span></footer>
-
 <script>
 (function(){
-  const pad = document.getElementById('joystick');
-  const stick = document.getElementById('stick');
-  const status = document.getElementById('status');
-  const indicator = document.getElementById('indicator');
-  const stopButton = document.getElementById('stopButton');
+  var joy=document.getElementById('joystick'), stick=document.getElementById('stick');
+  var sText=document.getElementById('statusText'), sDot=document.getElementById('statusDot');
+  var isDrag=false, curCmd='S', lastT=0;
 
-  let isDragging = false;
-  let current = 'stop';
-  let lastSent = 0;
-  let heartbeat = null;
-  let activeController = null;
-
-  const labels = {
-    forward: '▲ AVANZANDO',
-    backward: '▼ RETROCEDIENDO',
-    left: '◀ GIRO A LA IZQUIERDA',
-    right: 'GIRO A LA DERECHA ▶',
-    stop: 'MOTORES DETENIDOS'
-  };
-
-  function sendCommand(command, force) {
-    const now = Date.now();
-    if (!force && command === current && (now - lastSent < 160)) return;
-
-    current = command;
-    lastSent = now;
-
-    status.textContent = labels[command] || 'SISTEMA EN ESPERA';
-    indicator.style.background = command === 'stop' ? '#b8ff5a' : '#35e7ff';
-    indicator.style.boxShadow = command === 'stop'
-      ? '0 0 10px rgba(184,255,90,.7)'
-      : '0 0 12px rgba(53,231,255,.85)';
-
-    if (activeController) {
-      try { activeController.abort(); } catch (_) {}
-    }
-    if (window.AbortController) {
-      activeController = new AbortController();
-    }
-
-    const fetchOptions = {
-      method: 'GET',
-      cache: 'no-store',
-      credentials: 'same-origin'
-    };
-    if (activeController) {
-      fetchOptions.signal = activeController.signal;
-    }
-
-    fetch('/' + command, fetchOptions)
-      .then(function(res) {
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-      })
-      .catch(function(err) {
-        if (err && err.name === 'AbortError') return;
-        status.textContent = 'SIN RESPUESTA DEL ROBOT';
-        indicator.style.background = '#ff405d';
-        indicator.style.boxShadow = '0 0 10px rgba(255,64,93,.7)';
-      });
+  function sendCmd(cmd, txt){
+    if(cmd===curCmd && (Date.now()-lastT < 200)) return;
+    curCmd=cmd; lastT=Date.now(); sText.innerText=txt;
+    sDot.style.background = (cmd==='S') ? '#35e7ff' : '#b8ff5a';
+    sDot.style.boxShadow = (cmd==='S') ? '0 0 10px #35e7ff' : '0 0 12px #b8ff5a';
+    fetch('/action?go='+cmd).catch(()=>{});
   }
 
-  function centerStick() {
-    stick.style.left = '50%';
-    stick.style.top = '50%';
-    stick.classList.remove('active');
+  function updatePos(cX, cY){
+    var r=joy.getBoundingClientRect(), cx=r.width/2, cy=r.height/2;
+    var dx=cX-(r.left+cx), dy=cY-(r.top+cy), dist=Math.sqrt(dx*dx+dy*dy), max=r.width*0.35;
+    if(dist>max){ dx=(dx/dist)*max; dy=(dy/dist)*max; }
+    stick.style.left=(cx+dx)+'px'; stick.style.top=(cy+dy)+'px';
+    
+    if(dist < r.width*0.15) sendCmd('S','DETENIDO');
+    else if(Math.abs(dx)>Math.abs(dy)) dx>0 ? sendCmd('R','DERECHA') : sendCmd('L','IZQUIERDA');
+    else dy>0 ? sendCmd('B','ATRÁS') : sendCmd('F','ADELANTE');
   }
 
-  function startHeartbeat() {
-    stopHeartbeat();
-    heartbeat = setInterval(function() {
-      if (isDragging && current !== 'stop') {
-        sendCommand(current, true);
-      }
-    }, 240);
+  function resetJoy(){
+    isDrag=false; stick.classList.remove('active');
+    stick.style.left='120px'; stick.style.top='120px';
+    sendCmd('S','DETENIDO');
   }
 
-  function stopHeartbeat() {
-    if (heartbeat !== null) {
-      clearInterval(heartbeat);
-      heartbeat = null;
-    }
-  }
-
-  function stop() {
-    isDragging = false;
-    stopHeartbeat();
-    centerStick();
-    sendCommand('stop', true);
-  }
-
-  function updatePosition(clientX, clientY) {
-    const rect = pad.getBoundingClientRect();
-    const cx = rect.width / 2;
-    const cy = rect.height / 2;
-    let dx = clientX - (rect.left + cx);
-    let dy = clientY - (rect.top + cy);
-    const max = rect.width * 0.32;
-    const dist = Math.hypot(dx, dy);
-
-    if (dist > max) {
-      dx = (dx / dist) * max;
-      dy = (dy / dist) * max;
-    }
-
-    stick.style.left = (cx + dx) + 'px';
-    stick.style.top = (cy + dy) + 'px';
-    stick.classList.add('active');
-
-    if (dist < max * 0.22) {
-      if (current !== 'stop') {
-        sendCommand('stop', true);
-      }
-      return;
-    }
-
-    let command;
-    if (Math.abs(dx) > Math.abs(dy)) {
-      command = dx > 0 ? 'right' : 'left';
-    } else {
-      command = dy > 0 ? 'backward' : 'forward';
-    }
-
-    sendCommand(command, false);
-  }
-
-  // ===== EVENTOS TÁCTILES (CELULARES Y TABLETS) =====
-  pad.addEventListener('touchstart', function(e) {
-    e.preventDefault();
-    isDragging = true;
-    const touch = e.touches[0];
-    updatePosition(touch.clientX, touch.clientY);
-    startHeartbeat();
-  }, { passive: false });
-
-  window.addEventListener('touchmove', function(e) {
-    if (!isDragging) return;
-    e.preventDefault();
-    const touch = e.touches[0];
-    updatePosition(touch.clientX, touch.clientY);
-  }, { passive: false });
-
-  window.addEventListener('touchend', function() {
-    if (isDragging) stop();
-  });
-
-  window.addEventListener('touchcancel', function() {
-    if (isDragging) stop();
-  });
-
-  // ===== EVENTOS DE MOUSE (PC / LAPTOP) =====
-  pad.addEventListener('mousedown', function(e) {
-    e.preventDefault();
-    isDragging = true;
-    updatePosition(e.clientX, e.clientY);
-    startHeartbeat();
-  });
-
-  window.addEventListener('mousemove', function(e) {
-    if (!isDragging) return;
-    e.preventDefault();
-    updatePosition(e.clientX, e.clientY);
-  });
-
-  window.addEventListener('mouseup', function() {
-    if (isDragging) stop();
-  });
-
-  // ===== BOTÓN DE FRENO Y SEGURIDAD =====
-  stopButton.addEventListener('touchstart', function(e) {
-    e.preventDefault();
-    stop();
-  }, { passive: false });
-
-  stopButton.addEventListener('click', stop);
-
-  window.addEventListener('blur', function() {
-    if (isDragging) stop();
-  });
-
-  document.addEventListener('visibilitychange', function() {
-    if (document.hidden) stop();
-  });
-
-  window.addEventListener('pagehide', function() {
-    stopHeartbeat();
-    fetch('/stop', {
-      method: 'GET',
-      cache: 'no-store',
-      keepalive: true
-    }).catch(function(){});
-  });
+  joy.addEventListener('touchstart', e=>{ e.preventDefault(); isDrag=true; stick.classList.add('active'); updatePos(e.touches[0].clientX, e.touches[0].clientY); },{passive:false});
+  window.addEventListener('touchmove', e=>{ if(isDrag){ e.preventDefault(); updatePos(e.touches[0].clientX, e.touches[0].clientY); }},{passive:false});
+  window.addEventListener('touchend', resetJoy); window.addEventListener('touchcancel', resetJoy);
+  joy.addEventListener('mousedown', e=>{ e.preventDefault(); isDrag=true; stick.classList.add('active'); updatePos(e.clientX, e.clientY); });
+  window.addEventListener('mousemove', e=>{ if(isDrag) updatePos(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', resetJoy);
+  document.getElementById('btnStop').addEventListener('touchstart', e=>{ e.preventDefault(); resetJoy(); },{passive:false});
+  document.getElementById('btnStop').addEventListener('click', resetJoy);
 })();
 </script>
 </body>
 </html>
 )rawliteral";
 
-// ===== MOVIMIENTO Y DEPURACIÓN (GIROS CORREGIDOS) =====
-void moveForward() {
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-  digitalWrite(LED_AZUL, HIGH);
-  motoresEnMovimiento = true;
-  Serial.println("[MOTORES] -> AVANZANDO (FORWARD)");
-}
-
-void moveBackward() {
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
-  digitalWrite(LED_AZUL, HIGH);
-  motoresEnMovimiento = true;
-  Serial.println("[MOTORES] -> RETROCEDIENDO (BACKWARD)");
-}
-
-void turnLeft() {
-  // Polaridad invertida respecto a la versión anterior para girar a la izquierda real
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
-  digitalWrite(LED_AZUL, HIGH);
-  motoresEnMovimiento = true;
-  Serial.println("[MOTORES] -> GIRO IZQUIERDA (LEFT)");
-}
-
-void turnRight() {
-  // Polaridad invertida respecto a la versión anterior para girar a la derecha real
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-  digitalWrite(LED_AZUL, HIGH);
-  motoresEnMovimiento = true;
-  Serial.println("[MOTORES] -> GIRO DERECHA (RIGHT)");
-}
-
-void stopMotors() {
+// ===== FUNCIONES DE MOTORES (MÁXIMA POTENCIA REAL CON DIGITALWRITE) =====
+void frenarMotores() {
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, LOW);
   digitalWrite(LED_AZUL, LOW);
-  if (motoresEnMovimiento) {
-    motoresEnMovimiento = false;
-    Serial.println("[MOTORES] -> DETENIDOS (STOP)");
-  }
+  Serial.println("FRENADO");
 }
 
-// ===== EVENTOS WIFI (DEPURACIÓN DE CONEXIONES) =====
+void avanzar() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  digitalWrite(LED_AZUL, HIGH);
+  Serial.println("AVANZANDO (POTENCIA MAX)");
+}
+
+void retroceder() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  digitalWrite(LED_AZUL, HIGH);
+  Serial.println("RETROCEDIENDO (POTENCIA MAX)");
+}
+
+// INVERTIDO: Cuando recibe comando Izquierda, ejecuta pines de giro a la Derecha
+void girarIzquierda() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  digitalWrite(LED_AZUL, HIGH);
+  Serial.println("IZQUIERDA (Giro físico a la Derecha - POTENCIA MAX)");
+}
+
+// INVERTIDO: Cuando recibe comando Derecha, ejecuta pines de giro a la Izquierda
+void girarDerecha() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  digitalWrite(LED_AZUL, HIGH);
+  Serial.println("DERECHA (Giro físico a la Izquierda - POTENCIA MAX)");
+}
+
+// ===== EVENTOS WIFI =====
 void WiFiEvent(WiFiEvent_t event) {
-  switch (event) {
-    case ARDUINO_EVENT_WIFI_AP_STACONNECTED:
-      Serial.print("[WIFI AP] Dispositivo conectado. Clientes activos: ");
-      Serial.println(WiFi.softAPgetStationNum());
-      break;
-    case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED:
-      Serial.print("[WIFI AP] Dispositivo desconectado. Clientes activos: ");
-      Serial.println(WiFi.softAPgetStationNum());
-      if (WiFi.softAPgetStationNum() == 0) {
-        Serial.println("[SEGURIDAD] Sin clientes conectados. Deteniendo motores.");
-        stopMotors();
-      }
-      break;
-    default:
-      break;
+  if (event == ARDUINO_EVENT_WIFI_AP_STADISCONNECTED && WiFi.softAPgetStationNum() == 0) {
+    frenarMotores();
   }
 }
 
-// ===== PAGINA PRINCIPAL =====
-void handleRoot() {
-  Serial.print("[HTTP] Cliente cargó la página web desde IP: ");
-  Serial.println(server.client().remoteIP());
-  server.send_P(200, "text/html; charset=utf-8", html_page);
+// ===== RUTAS DEL SERVIDOR WEB =====
+void handleAction() {
+  if (!server.hasArg("go")) return;
+  String cmd = server.arg("go");
+
+  if (cmd == "F") avanzar();
+  else if (cmd == "B") retroceder();
+  else if (cmd == "L") girarIzquierda();
+  else if (cmd == "R") girarDerecha();
+  else frenarMotores();
+
+  server.send(200, "text/plain", "OK");
 }
 
-// ===== CONFIGURACION =====
+// ===== SETUP =====
 void setup() {
   Serial.begin(115200);
-  delay(500);
-  ultimaOrdenMovimiento = millis();
-
-  Serial.println("\n=============================================");
-  Serial.println("  INICIANDO CAR SOCCER - KALI MODE (ESP32)");
-  Serial.println("=============================================");
-
+  
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
   pinMode(LED_AZUL, OUTPUT);
+  
+  frenarMotores();
 
-  stopMotors();
-  Serial.println("[OK] Pines de motores L298N inicializados en LOW.");
-
-  // Configurar ESP32 como Punto de Acceso (Localhost) con IP Fija 192.168.50.1
   WiFi.mode(WIFI_AP);
   WiFi.onEvent(WiFiEvent);
-
-  if (WiFi.softAPConfig(local_IP, gateway, subnet)) {
-    Serial.println("[OK] IP Fija configurada en 192.168.50.1");
-  } else {
-    Serial.println("[ERROR] Falló la configuración de IP Fija.");
+  WiFi.softAPConfig(local_IP, gateway, subnet);
+  
+  if (WiFi.softAP(ssid, password, wifi_channel, 0, 4)) {
+    Serial.println("WiFi Listo: " + String(ssid) + " | IP: " + WiFi.softAPIP().toString());
+    for(int i=0; i<3; i++){ digitalWrite(LED_AZUL, HIGH); delay(150); digitalWrite(LED_AZUL, LOW); delay(150); }
   }
 
-  // Crear la red Wi-Fi (Canal 6 para no interferir con el otro carro en Canal 1)
-  if (WiFi.softAP(ssid, password, 6, 0, 4)) {
-    Serial.println("[OK] Red Wi-Fi creada exitosamente:");
-    Serial.print("     -> Nombre de Red (SSID): ");
-    Serial.println(ssid);
-    Serial.print("     -> Contraseña: ");
-    Serial.println(password);
-    Serial.print("     -> Abre en tu navegador: http://");
-    Serial.println(WiFi.softAPIP());
-
-    // 3 destellos del LED Azul indicando que el Punto de Acceso está listo
-    for (int i = 0; i < 3; i++) {
-      digitalWrite(LED_AZUL, HIGH);
-      delay(150);
-      digitalWrite(LED_AZUL, LOW);
-      delay(150);
-    }
-  } else {
-    Serial.println("[ERROR] No se pudo iniciar el Punto de Acceso Wi-Fi.");
-  }
-
-  // Rutas del Servidor Web
-  server.on("/", HTTP_GET, handleRoot);
-
-  server.on("/forward", HTTP_GET, []() {
-    ultimaOrdenMovimiento = millis();
-    moveForward();
-    server.send(200, "text/plain", "FORWARD");
-  });
-
-  server.on("/backward", HTTP_GET, []() {
-    ultimaOrdenMovimiento = millis();
-    moveBackward();
-    server.send(200, "text/plain", "BACKWARD");
-  });
-
-  server.on("/left", HTTP_GET, []() {
-    ultimaOrdenMovimiento = millis();
-    turnLeft();
-    server.send(200, "text/plain", "LEFT");
-  });
-
-  server.on("/right", HTTP_GET, []() {
-    ultimaOrdenMovimiento = millis();
-    turnRight();
-    server.send(200, "text/plain", "RIGHT");
-  });
-
-  server.on("/stop", HTTP_GET, []() {
-    ultimaOrdenMovimiento = millis();
-    stopMotors();
-    server.send(200, "text/plain", "STOP");
-  });
-
+  server.on("/", [](){ server.send_P(200, "text/html", html_page); });
+  server.on("/action", handleAction);
   server.begin();
-  Serial.println("[OK] Servidor web iniciado en puerto 80.");
-  Serial.println("=============================================\n");
 }
 
-// ===== BUCLE PRINCIPAL =====
 void loop() {
   server.handleClient();
-
-  // Parada de seguridad: si deja de llegar la señal del joystick por más de 700 ms,
-  // apaga los motores automáticamente.
-  if (motoresEnMovimiento && (millis() - ultimaOrdenMovimiento > TIEMPO_MAXIMO_SIN_ORDEN)) {
-    Serial.println("[WATCHDOG] Tiempo sin señal agotado (700 ms). Parada automática activada.");
-    stopMotors();
-  }
 }
