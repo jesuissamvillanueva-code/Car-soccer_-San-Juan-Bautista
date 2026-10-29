@@ -1,0 +1,498 @@
+#include <WiFi.h>
+#include <WebServer.h>
+
+// ===== CONFIGURACIÓN WIFI (MODO PUNTO DE ACCESO / LOCALHOST) =====
+const char* ssid = "Car San Juan Bautista";
+const char* password = "123456789"; // Mínimo 8 caracteres
+
+// Nueva Configuración de IP Fija personalizada (192.168.10.1)
+IPAddress local_IP(192, 168, 10, 1);
+IPAddress gateway(192, 168, 10, 1);
+IPAddress subnet(255, 255, 255, 0);
+
+// ===== SERVIDOR WEB =====
+WebServer server(80);
+
+// ===== MOTORES L298N =====
+const int IN1 = 16;
+const int IN2 = 17;
+const int IN3 = 18;
+const int IN4 = 19;
+
+// ===== LED DE ESTADO Y DEPURACIÓN =====
+const int LED_AZUL = 2;
+
+// ===== PÁGINA WEB COMPLETA CON LOGO SJB HUARIACA Y JOYSTICK MULTITÁCTIL =====
+const char html_page[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#071321">
+<title>CAR SOCCER | Control ESP32</title>
+<style>
+:root{--cyan:#35e7ff;--blue:#178bff;--lime:#b8ff5a;--red:#ff4768;--panel:rgba(8,22,42,.88)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{min-height:100%;background:#050b16}
+body{margin:0;min-height:100vh;padding:22px 14px 28px;font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#effaff;text-align:center;overflow-x:hidden;background:radial-gradient(ellipse at 50% -10%,#174c78 0%,#0b2039 35%,#050b16 78%);background-attachment:fixed;user-select:none;-webkit-user-select:none}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.17;background-image:linear-gradient(rgba(53,231,255,.18) 1px,transparent 1px),linear-gradient(90deg,rgba(53,231,255,.18) 1px,transparent 1px);background-size:32px 32px;mask-image:linear-gradient(to bottom,black,transparent 90%)}
+header,main,footer{position:relative;z-index:1}
+.logo{display:block;width:clamp(96px,26vw,132px);height:auto;margin:0 auto 12px;border-radius:50%;box-shadow:0 0 0 3px rgba(53,231,255,.28),0 0 28px rgba(53,231,255,.25)}
+h1{margin:0;font-size:clamp(32px,8vw,50px);line-height:1.08;font-weight:950;letter-spacing:.13em;color:#f4fbff;text-shadow:0 0 16px rgba(53,231,255,.55)}
+h1 span{color:var(--cyan)}
+.subtitle{margin:10px 0 5px;font-size:11px;font-weight:800;letter-spacing:.22em;color:#8dd9f3}
+.school{font-size:11px;letter-spacing:.12em;color:#b9d7e8;line-height:1.5;font-weight:700}
+.chip{display:inline-flex;align-items:center;gap:7px;margin-top:14px;padding:7px 12px;border:1px solid rgba(184,255,90,.35);border-radius:99px;background:rgba(100,150,50,.12);font-size:10px;font-weight:800;letter-spacing:.13em;color:var(--lime)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:0 0 9px var(--lime)}
+.panel{width:min(100%,440px);margin:20px auto 0;padding:20px 16px 18px;border:1px solid rgba(53,231,255,.28);border-radius:25px;background:linear-gradient(145deg,rgba(13,37,64,.94),rgba(5,14,29,.96));box-shadow:0 18px 50px rgba(0,0,0,.35),inset 0 1px rgba(255,255,255,.06)}
+.panel-title{margin:0 0 7px;font-size:12px;font-weight:900;letter-spacing:.2em;color:#dffaff}
+.panel-sub{margin:0 0 14px;font-size:11px;color:#86aabd}
+.status{min-height:42px;display:flex;align-items:center;justify-content:center;gap:9px;margin:0 auto 16px;padding:10px 12px;border:1px solid rgba(53,231,255,.2);border-radius:12px;background:rgba(0,0,0,.24);color:var(--cyan);font-size:12px;font-weight:850;letter-spacing:.1em}
+.status-indicator{width:9px;height:9px;flex:0 0 auto;border-radius:50%;background:var(--lime);box-shadow:0 0 10px rgba(184,255,90,.7)}
+.joystick-wrap{display:flex;justify-content:center;align-items:center;padding:6px 0 14px}
+.joystick{position:relative;width:250px;height:250px;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:50%;border:2px solid rgba(80,223,255,.65);background:radial-gradient(circle,#12395b 0%,#0b2744 47%,#07172c 70%,#06101f 100%);box-shadow:0 0 0 8px rgba(23,139,255,.06),0 0 35px rgba(23,139,255,.18),inset 0 0 25px rgba(0,0,0,.6);cursor:grab}
+.joystick:before,.joystick:after{content:"";position:absolute;pointer-events:none;background:rgba(82,210,255,.16)}
+.joystick:before{width:1px;height:86%;left:50%;top:7%}
+.joystick:after{height:1px;width:86%;top:50%;left:7%}
+.direction{position:absolute;z-index:1;color:#91cfe5;font-size:18px;font-weight:900;line-height:1;text-shadow:0 0 8px rgba(53,231,255,.35);pointer-events:none}
+.direction.up{top:12px;left:50%;transform:translateX(-50%)}
+.direction.down{bottom:12px;left:50%;transform:translateX(-50%)}
+.direction.left{left:12px;top:50%;transform:translateY(-50%)}
+.direction.right{right:12px;top:50%;transform:translateY(-50%)}
+.stick{position:absolute;z-index:2;left:125px;top:125px;width:84px;height:84px;margin-left:-42px;margin-top:-42px;border-radius:50%;border:2px solid rgba(179,248,255,.95);background:radial-gradient(circle at 32% 25%,#8df6ff 0%,#27c5f5 20%,#0877bd 60%,#06416f 100%);box-shadow:0 0 0 7px rgba(53,231,255,.08),0 9px 20px rgba(0,0,0,.45),inset 0 2px 5px rgba(255,255,255,.6);pointer-events:none}
+.stick:after{content:"";position:absolute;inset:28%;border:1px solid rgba(255,255,255,.5);border-radius:50%}
+.stick.active{box-shadow:0 0 0 10px rgba(53,231,255,.18),0 0 28px rgba(53,231,255,.75),0 9px 20px rgba(0,0,0,.45),inset 0 2px 5px rgba(255,255,255,.6)}
+.stop{display:block;width:100%;margin:8px auto 0;padding:14px;border:1px solid rgba(255,71,104,.8);border-radius:13px;background:linear-gradient(135deg,#a91e3b,#5c1027);color:#fff;font-size:13px;font-weight:950;letter-spacing:.2em;box-shadow:0 5px 0 #350a18,0 10px 20px rgba(0,0,0,.2);touch-action:manipulation;cursor:pointer}
+.stop:active{transform:translateY(3px);box-shadow:0 2px 0 #350a18}
+.tip{margin:14px 2px 0;color:#8daabd;font-size:11px;line-height:1.6}
+footer{margin:20px auto 0;color:#66869d;font-size:9px;letter-spacing:.16em}
+@media(min-width:600px){body{padding-top:28px}.panel{padding:24px}.logo{width:124px}}
+</style>
+</head>
+<body>
+<header>
+  <!-- INSIGNIA OFICIAL I.E. JEC SAN JUAN BAUTISTA - HUARIACA PASCO -->
+  <svg class="logo" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <path id="textArcTop" d="M 48,150 A 102,102 0 1,1 252,150" fill="none"/>
+      <path id="textArcBottom" d="M 35,150 A 115,115 0 1,0 265,150" fill="none"/>
+    </defs>
+    <!-- Anillo Exterior Guinda -->
+    <circle cx="150" cy="150" r="146" fill="#8b0910" stroke="#300507" stroke-width="4"/>
+    <!-- Círculo Interior Crema -->
+    <circle cx="150" cy="150" r="92" fill="#f7eed2" stroke="#c89d7c" stroke-width="3"/>
+    <circle cx="150" cy="150" r="85" fill="none" stroke="#e4cfa6" stroke-width="2"/>
+    <!-- Puntos Blancos Laterales -->
+    <circle cx="28" cy="118" r="5" fill="#ffffff"/>
+    <circle cx="272" cy="114" r="5" fill="#ffffff"/>
+    <!-- Texto Curvo Superior e Inferior -->
+    <text fill="#ffffff" font-family="Arial, sans-serif" font-size="22" font-weight="900" letter-spacing="10">
+      <textPath href="#textArcTop" startOffset="50%" text-anchor="middle">I. E. JEC</textPath>
+    </text>
+    <text fill="#ffffff" font-family="Arial, sans-serif" font-size="20" font-weight="900" letter-spacing="6.5">
+      <textPath href="#textArcBottom" startOffset="50%" text-anchor="middle">SAN JUAN BAUTISTA</textPath>
+    </text>
+    <!-- Escudo Central -->
+    <path d="M 98,82 Q 124,95 150,82 Q 176,95 202,82 L 202,188 Q 202,208 150,218 Q 98,208 98,188 Z" fill="#d4d7d9" stroke="#999999" stroke-width="2"/>
+    <!-- Cuadro Superior Izquierdo (I) -->
+    <rect x="103" y="92" width="27" height="36" fill="#e30613" stroke="#222" stroke-width="1.2"/>
+    <text x="116.5" y="120" fill="#222" font-family="Georgia, serif" font-size="30" font-weight="bold" text-anchor="middle">I</text>
+    <!-- Cuadro Superior Central (Sol y JEC) -->
+    <rect x="132" y="92" width="36" height="36" fill="#ffffff" stroke="#222" stroke-width="1.2"/>
+    <g stroke="#9e6b14" stroke-width="1.4">
+      <line x1="150" y1="95" x2="150" y2="117"/><line x1="139" y1="106" x2="161" y2="106"/>
+      <line x1="142" y1="98" x2="158" y2="114"/><line x1="158" y1="98" x2="142" y2="114"/>
+    </g>
+    <circle cx="150" cy="106" r="5" fill="#d49b27" stroke="#9e6b14" stroke-width="1"/>
+    <text x="150" y="125" fill="#111" font-family="Georgia, serif" font-size="10" font-weight="bold" letter-spacing="1.5" text-anchor="middle">JEC</text>
+    <!-- Cuadro Superior Derecho (E) -->
+    <rect x="170" y="92" width="27" height="36" fill="#e30613" stroke="#222" stroke-width="1.2"/>
+    <text x="183.5" y="120" fill="#222" font-family="Georgia, serif" font-size="30" font-weight="bold" text-anchor="middle">E</text>
+    <!-- Mitad Inferior Izquierda Amarilla (S J B) -->
+    <path d="M 103,131 L 150,131 L 150,209 Q 103,202 103,185 Z" fill="#ffcc00"/>
+    <!-- Mitad Inferior Derecha Verde (Antorcha) -->
+    <path d="M 150,131 L 197,131 L 197,185 Q 197,202 150,209 Z" fill="#009640"/>
+    <path d="M 103,131 L 197,131 L 197,185 Q 197,202 150,209 Q 103,202 103,185 Z" fill="none" stroke="#222" stroke-width="1.2"/>
+    <!-- Letras S J B escalonadas -->
+    <text x="114" y="153" fill="#b5121b" font-family="Georgia, serif" font-size="23" font-weight="bold" text-anchor="middle">S</text>
+    <text x="127" y="170" fill="#b5121b" font-family="Georgia, serif" font-size="23" font-weight="bold" text-anchor="middle">J</text>
+    <text x="140" y="188" fill="#b5121b" font-family="Georgia, serif" font-size="23" font-weight="bold" text-anchor="middle">B</text>
+    <!-- Antorcha -->
+    <polygon points="168,156 178,156 174,185 172,185" fill="#d9b36c" stroke="#4a3511" stroke-width="1"/>
+    <rect x="165" y="152" width="16" height="4" rx="1" fill="#d9b36c" stroke="#4a3511" stroke-width="1"/>
+    <path d="M 166,152 Q 165,141 173,136 Q 181,141 180,152 Z" fill="#ffcc00" stroke="#e30613" stroke-width="1.2"/>
+    <path d="M 170,152 Q 170,145 173,141 Q 176,145 176,152 Z" fill="#e30613"/>
+    <!-- Texto HUARIACA - PASCO -->
+    <text x="150" y="200" fill="#111111" font-family="Arial, sans-serif" font-size="8.5" font-weight="bold" text-anchor="middle">HUARIACA - PASCO</text>
+  </svg>
+
+  <h1>CAR <span>SOCCER</span></h1>
+  <div class="subtitle">SISTEMA DE CONTROL INALÁMBRICO</div>
+  <div class="school">I.E. JEC SAN JUAN BAUTISTA • HUARIACA</div>
+  <div class="chip"><span class="dot" id="connDot"></span><span id="connText">IP FIJA: 192.168.10.1</span></div>
+</header>
+
+<main>
+  <div class="panel">
+    <h2 class="panel-title">MANDO TÁCTIL</h2>
+    <p class="panel-sub">Arrastra el círculo central con tu dedo o mouse</p>
+    <div class="status">
+      <span class="status-indicator" id="statusDot"></span>
+      <span id="statusText">MOTORES FRENADOS (DETENIDO)</span>
+    </div>
+    <div class="joystick-wrap">
+      <div class="joystick" id="joystick">
+        <span class="direction up">▲</span>
+        <span class="direction down">▼</span>
+        <span class="direction left">◀</span>
+        <span class="direction right">▶</span>
+        <div class="stick" id="stick"></div>
+      </div>
+    </div>
+    <button class="stop" id="btnStop" type="button">FRENAR MOTORES</button>
+    <p class="tip">Al soltar el joystick o presionar el botón rojo, los motores se frenan inmediatamente.</p>
+  </div>
+</main>
+
+<footer>CAR SAN JUAN BAUTISTA • ESP32 LOCALHOST</footer>
+
+<script>
+(function() {
+  var joystick = document.getElementById('joystick');
+  var stick = document.getElementById('stick');
+  var statusText = document.getElementById('statusText');
+  var statusDot = document.getElementById('statusDot');
+  var btnStop = document.getElementById('btnStop');
+
+  var isDragging = false;
+  var currentCmd = 'S';
+  var lastSentTime = 0;
+
+  // Envía el comando al ESP32 sin bloquear el movimiento de la interfaz
+  function enviarComando(cmd, textoEstado, forzar) {
+    var ahora = Date.now();
+    if (!forzar && cmd === currentCmd && (ahora - lastSentTime < 250)) {
+      return;
+    }
+    currentCmd = cmd;
+    lastSentTime = ahora;
+    statusText.innerText = textoEstado;
+
+    if (cmd === 'S') {
+      statusDot.style.background = '#35e7ff';
+      statusDot.style.boxShadow = '0 0 10px #35e7ff';
+    } else {
+      statusDot.style.background = '#b8ff5a';
+      statusDot.style.boxShadow = '0 0 12px #b8ff5a';
+    }
+
+    fetch('/action?go=' + cmd, { cache: 'no-store' })
+      .then(function(res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+      })
+      .catch(function() {
+        // Si estás probando el HTML fuera del ESP32, igual mueve el joystick y avisa
+        statusDot.style.background = '#ff9800';
+      });
+  }
+
+  function actualizarPosicion(clientX, clientY) {
+    var rect = joystick.getBoundingClientRect();
+    var centerX = rect.width / 2;
+    var centerY = rect.height / 2;
+
+    var dx = clientX - (rect.left + centerX);
+    var dy = clientY - (rect.top + centerY);
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    var maxDist = rect.width * 0.33; // Radio máximo de movimiento
+
+    if (dist > maxDist) {
+      dx = (dx / dist) * maxDist;
+      dy = (dy / dist) * maxDist;
+    }
+
+    // Mover el botón físicamente usando píxeles exactos (100% compatible con todos los celulares)
+    stick.style.left = (centerX + dx) + 'px';
+    stick.style.top = (centerY + dy) + 'px';
+
+    var zonaMuerta = rect.width * 0.12;
+    if (dist < zonaMuerta) {
+      enviarComando('S', 'MOTORES FRENADOS (DETENIDO)', false);
+    } else if (Math.abs(dx) > Math.abs(dy)) {
+      if (dx > 0) {
+        enviarComando('R', 'GIRANDO A LA DERECHA ▶', false);
+      } else {
+        enviarComando('L', '◀ GIRANDO A LA IZQUIERDA', false);
+      }
+    } else {
+      if (dy > 0) {
+        enviarComando('B', '▼ RETROCEDIENDO', false);
+      } else {
+        enviarComando('F', '▲ AVANZANDO', false);
+      }
+    }
+  }
+
+  function centrarYFrenar() {
+    isDragging = false;
+    stick.classList.remove('active');
+    var rect = joystick.getBoundingClientRect();
+    stick.style.left = (rect.width / 2) + 'px';
+    stick.style.top = (rect.height / 2) + 'px';
+    enviarComando('S', 'MOTORES FRENADOS (DETENIDO)', true);
+  }
+
+  // ===== EVENTOS TÁCTILES (CELULARES Y TABLETS) =====
+  joystick.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    isDragging = true;
+    stick.classList.add('active');
+    var touch = e.touches[0];
+    actualizarPosicion(touch.clientX, touch.clientY);
+  }, { passive: false });
+
+  window.addEventListener('touchmove', function(e) {
+    if (!isDragging) return;
+    e.preventDefault();
+    var touch = e.touches[0];
+    actualizarPosicion(touch.clientX, touch.clientY);
+  }, { passive: false });
+
+  window.addEventListener('touchend', function(e) {
+    if (!isDragging) return;
+    centrarYFrenar();
+  });
+
+  window.addEventListener('touchcancel', function(e) {
+    if (!isDragging) return;
+    centrarYFrenar();
+  });
+
+  // ===== EVENTOS DE MOUSE (PC / LAPTOP) =====
+  joystick.addEventListener('mousedown', function(e) {
+    e.preventDefault();
+    isDragging = true;
+    stick.classList.add('active');
+    actualizarPosicion(e.clientX, e.clientY);
+  });
+
+  window.addEventListener('mousemove', function(e) {
+    if (!isDragging) return;
+    actualizarPosicion(e.clientX, e.clientY);
+  });
+
+  window.addEventListener('mouseup', function() {
+    if (!isDragging) return;
+    centrarYFrenar();
+  });
+
+  // ===== BOTÓN DE FRENO DE EMERGENCIA =====
+  btnStop.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    centrarYFrenar();
+  }, { passive: false });
+
+  btnStop.addEventListener('click', function() {
+    centrarYFrenar();
+  });
+
+  // ===== SOPORTE PARA TECLADO (FLECHAS / WASD) =====
+  window.addEventListener('keydown', function(e) {
+    var rect = joystick.getBoundingClientRect();
+    var cx = rect.left + rect.width / 2;
+    var cy = rect.top + rect.height / 2;
+    var offset = 75;
+    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+      stick.classList.add('active');
+      actualizarPosicion(cx, cy - offset);
+    } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+      stick.classList.add('active');
+      actualizarPosicion(cx, cy + offset);
+    } else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+      stick.classList.add('active');
+      actualizarPosicion(cx - offset, cy);
+    } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+      stick.classList.add('active');
+      actualizarPosicion(cx + offset, cy);
+    } else if (e.key === ' ') {
+      centrarYFrenar();
+    }
+  });
+
+  window.addEventListener('keyup', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d','W','A','S','D'].indexOf(e.key) !== -1) {
+      centrarYFrenar();
+    }
+  });
+
+  window.addEventListener('resize', function() {
+    if (!isDragging) {
+      var rect = joystick.getBoundingClientRect();
+      stick.style.left = (rect.width / 2) + 'px';
+      stick.style.top = (rect.height / 2) + 'px';
+    }
+  });
+})();
+</script>
+</body>
+</html>
+)rawliteral";
+
+// ===== FUNCIONES DE CONTROL DE MOTORES (L298N) Y DEPURACIÓN =====
+void frenarMotores() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+  digitalWrite(LED_AZUL, LOW);
+  Serial.println("[MOTORES] -> FRENADOS / DETENIDO (IN1:0 IN2:0 IN3:0 IN4:0)");
+}
+
+void avanzar() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  digitalWrite(LED_AZUL, HIGH);
+  Serial.println("[MOTORES] -> AVANZANDO (IN1:1 IN2:0 IN3:1 IN4:0)");
+}
+
+void retroceder() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  digitalWrite(LED_AZUL, HIGH);
+  Serial.println("[MOTORES] -> RETROCEDIENDO (IN1:0 IN2:1 IN3:0 IN4:1)");
+}
+
+void girarIzquierda() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  digitalWrite(LED_AZUL, HIGH);
+  Serial.println("[MOTORES] -> GIRANDO A LA IZQUIERDA (IN1:0 IN2:1 IN3:1 IN4:0)");
+}
+
+void girarDerecha() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  digitalWrite(LED_AZUL, HIGH);
+  Serial.println("[MOTORES] -> GIRANDO A LA DERECHA (IN1:1 IN2:0 IN3:0 IN4:1)");
+}
+
+// ===== EVENTOS WIFI PARA DEPURACIÓN EN TIEMPO REAL =====
+void WiFiEvent(WiFiEvent_t event) {
+  switch (event) {
+    case ARDUINO_EVENT_WIFI_AP_STACONNECTED:
+      Serial.print("[WIFI DEBUG] Dispositivo conectado al Car. Total clientes: ");
+      Serial.println(WiFi.softAPgetStationNum());
+      break;
+    case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED:
+      Serial.print("[WIFI DEBUG] Dispositivo desconectado. Total clientes: ");
+      Serial.println(WiFi.softAPgetStationNum());
+      if (WiFi.softAPgetStationNum() == 0) {
+        Serial.println("[SEGURIDAD] Ningún celular conectado. Frenando motores automáticamente.");
+        frenarMotores();
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+// ===== RUTAS DEL SERVIDOR WEB =====
+void handleRoot() {
+  Serial.print("[WEB] Cargando interfaz de control en el dispositivo: ");
+  Serial.println(server.client().remoteIP());
+  server.send_P(200, "text/html", html_page);
+}
+
+void handleAction() {
+  if (!server.hasArg("go")) {
+    server.send(400, "text/plain", "ERROR: Falta parametro go");
+    return;
+  }
+
+  String cmd = server.arg("go");
+  if (cmd == "F") avanzar();
+  else if (cmd == "B") retroceder();
+  else if (cmd == "L") girarIzquierda();
+  else if (cmd == "R") girarDerecha();
+  else if (cmd == "S") frenarMotores();
+  else frenarMotores();
+
+  server.send(200, "text/plain", "OK:" + cmd);
+}
+
+// ===== SETUP =====
+void setup() {
+  Serial.begin(115200);
+  delay(500);
+
+  Serial.println("\n==================================================");
+  Serial.println("  INICIANDO SISTEMA: CAR SAN JUAN BAUTISTA");
+  Serial.println("==================================================");
+
+  // Inicializar Pines L298N
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+  pinMode(LED_AZUL, OUTPUT);
+
+  frenarMotores();
+  Serial.println("[OK] Motores frenados por defecto y pines configurados.");
+
+  // Configurar Punto de Acceso con nueva IP Fija (192.168.10.1)
+  WiFi.mode(WIFI_AP);
+  WiFi.onEvent(WiFiEvent);
+
+  if (WiFi.softAPConfig(local_IP, gateway, subnet)) {
+    Serial.println("[OK] Nueva IP Fija 192.168.10.1 asignada correctamente.");
+  } else {
+    Serial.println("[ERROR] Falló la asignación de IP Fija.");
+  }
+
+  if (WiFi.softAP(ssid, password, 1, 0, 4)) {
+    Serial.println("[OK] Wi-Fi Punto de Acceso creado exitosamente.");
+    Serial.print("     -> Red Wi-Fi (SSID): ");
+    Serial.println(ssid);
+    Serial.print("     -> Contraseña: ");
+    Serial.println(password);
+    Serial.print("     -> Entra desde tu navegador a: http://");
+    Serial.println(WiFi.softAPIP());
+
+    // 3 parpadeos del LED Azul indicando que el servidor está listo
+    for (int i = 0; i < 3; i++) {
+      digitalWrite(LED_AZUL, HIGH);
+      delay(150);
+      digitalWrite(LED_AZUL, LOW);
+      delay(150);
+    }
+  } else {
+    Serial.println("[ERROR] No se pudo crear el Wi-Fi.");
+  }
+
+  // Rutas principales y rutas directas adicionales de respaldo
+  server.on("/", HTTP_GET, handleRoot);
+  server.on("/action", HTTP_GET, handleAction);
+  server.on("/F", HTTP_GET, []() { avanzar(); server.send(200, "text/plain", "OK"); });
+  server.on("/B", HTTP_GET, []() { retroceder(); server.send(200, "text/plain", "OK"); });
+  server.on("/L", HTTP_GET, []() { girarIzquierda(); server.send(200, "text/plain", "OK"); });
+  server.on("/R", HTTP_GET, []() { girarDerecha(); server.send(200, "text/plain", "OK"); });
+  server.on("/S", HTTP_GET, []() { frenarMotores(); server.send(200, "text/plain", "OK"); });
+
+  server.begin();
+  Serial.println("[OK] Servidor Web corriendo sin errores.");
+  Serial.println("==================================================\n");
+}
+
+// ===== LOOP =====
+void loop() {
+  server.handleClient();
+}
