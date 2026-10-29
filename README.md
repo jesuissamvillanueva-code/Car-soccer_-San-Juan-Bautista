@@ -21,9 +21,17 @@ Este sistema convierte cualquier teléfono celular en un control de mando inalá
 
 ## 📸 **Galería y Vistas del Proyecto**
 
-| Vista General del Robot | Interfaz de Control |
+| Vista General del Robot (Acabado) | Vista del Entorno |
 | :---: | :---: |
-| ![Car View Finish](assets/images/car_view_finish.jpg) | ![Control SJB](assets/images/control_sjb.jpg) |
+| ![Car View Finish](car_view_finish.jpg) | ![Car View Sky](car_view_sky.jpg) |
+
+| Interfaz de Control (SJB) | Interfaz de Control (Sam) |
+| :---: | :---: |
+| ![Control SJB](control_sjb.jpg) | ![Control Sam](control_sam.jpg) |
+
+| Modelo 3D del Carro |
+| :---: |
+| ![Modelo 3D Car](modelo%203d%20car.jpg) |
 
 ---
 
