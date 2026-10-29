@@ -9,29 +9,44 @@
 
 </div>
 
-Repositorio oficial del proyecto **Car Soccer**, un vehículo robótico móvil controlado de forma inalámbrica mediante un servidor web embebido en un **ESP32**, diseñado e implementado para la **I.E. JEC San Juan Bautista - Huariaca**. 🎓🏆
+Repositorio oficial del proyecto **Car Soccer**, un vehículo robótico móvil controlado de forma inalámbrica mediante un servidor web embebido en un **ESP32**, diseñado e implementado para la **I.E. JEC San Juan Bautista - Huariaca**[cite: 1].
 
 ---
 
 ## 🌟 **Descripción del Proyecto**
 
-Este sistema convierte cualquier teléfono celular en un control de mando inalámbrico a través de una red local Wi-Fi. La interfaz web interactiva está alojada directamente en la memoria flash del **ESP32**, permitiendo pilotar el robot en tiempo real mediante un **Joystick táctil de alta precisión**.
+Este sistema innovador convierte cualquier teléfono celular en un control de mando inalámbrico a través de una red local Wi-Fi. La interfaz web interactiva está alojada directamente en la memoria flash del **ESP32**, permitiendo pilotar el robot en tiempo real mediante un **Joystick táctil de alta precisión**.
 
 ---
 
 ## 📸 **Galería y Vistas del Proyecto**
 
-| Vista General del Robot (Acabado) | Vista del Entorno |
-| :---: | :---: |
-| ![Car View Finish](car_view_finish.jpg) | ![Car View Sky](car_view_sky.jpg) |
+### 🏆 Vistas Principales del Robot
+| Vista Principal (Blanco SJB) | Vista de Acabado General | Vista de Acabado Blanco |
+| :---: | :---: | :---: |
+| ![Car Finish White SJB](car_finish_white_Sjb.jpg) | ![Car View Finish](car_view_finish.jpg) | ![Car View Finish White](car_view_finish_white.jpg) |
 
+### 🌄 Entornos y Pruebas de Campo
+| Vista de Entorno (Sky) | Vista de Entorno (Sky Red) |
+| :---: | :---: |
+| ![Car View Sky](car_view_sky.jpg) | ![Car View Sky Red](car_view_sky_red.jpg) |
+
+### 🕹️ Interfaces de Control Táctil Web
 | Interfaz de Control (SJB) | Interfaz de Control (Sam) |
 | :---: | :---: |
-| ![Control SJB](control_sjb.jpg) | ![Control Sam](control_sam.jpg) |
+| ![Control SJB](control_SJB%20.jpg) | ![Control Sam](control_sam%20.jpg) |
 
-| Modelo 3D del Carro |
+### 📐 Modelo 3D del Carro
+| Modelo 3D Estructural |
 | :---: |
 | ![Modelo 3D Car](modelo%203d%20car.jpg) |
+
+---
+
+## 📊 **Diagramas y Documentación Técnica**
+
+El esquema completo de conexiones y la arquitectura electrónica del vehículo se pueden consultar en el siguiente documento oficial:
+* 📄 [Descargar / Ver Diagrama del Carro Móvil (PDF)](diagrama_carro_movil.pdf)
 
 ---
 
@@ -39,7 +54,7 @@ Este sistema convierte cualquier teléfono celular en un control de mando inalá
 
 - 📶 **Control Inalámbrico Wi-Fi Directo:** Red local propia alojada en el ESP32 para una respuesta inmediata sin retardos.
 - 🕹️ **Joystick Virtual Táctil:** Interfaz fluida desarrollada en HTML5/JS que detecta gestos y ejecuta un **freno de seguridad automático** al soltarlo.
-- 🎨 **Diseño Cyber-Futurista & Identidad Institucional:** Interfaz gráfica optimizada con colores neón y la **insignia oficial incrustada** de la I.E. San Juan Bautista.
+- 🎨 **Diseño Cyber-Futurista & Identidad Institucional:** Interfaz gráfica optimizada con colores neón y la insignia oficial de la institución.
 - ⚡ **Control de Motores PWM:** Regulación de maniobras gracias al driver L298N Mini / MX1508.
 
 ---
@@ -68,14 +83,24 @@ Este sistema convierte cualquier teléfono celular en un control de mando inalá
 
 ---
 
-## 💻 **Código Fuente Principal**
+## 💻 **Organización del Código Fuente**
 
-Los códigos fuente oficiales se encuentran organizados dentro de la carpeta [src/](src/)[cite: 2]:
-* `src/CAR_SOCCER_SJB.ino` (Código principal optimizado con servidor web e IP fija `192.168.10.1`)
-* `src/CAR_SOCCER_Kali.ino`
-* `src/codigo_local_Sam.ino`
-* `src/codigo_local_sjb.ino`
+Los archivos se encuentran distribuidos según su modalidad de red y despliegue:
+
+### 🌐 Códigos con Creación de Red Propia (Access Point)
+* `CAR_SOCCER_SJB.ino` - Código principal adaptado con identidad institucional y servidor web integrado.
+* `CAR_SOCCER_Kali.ino` - Versión alternativa de pruebas y despliegue del sistema.
+
+### 📡 Códigos de Respuesta Local (Cuando el ESP32 emite la red Wi-Fi y gestiona clientes)
+* `codigo_local_sjb` - Lógica de control optimizada para la institución educativa.
+* `codigo_local_Sam` - Versión de desarrollo local orientada al rendimiento del servidor web.
 
 ---
 
-<footer>CAR SAN JUAN BAUTISTA • ESP32 LOCALHOST</footer>
+<br>
+
+<div align="center">
+
+### Car San Juan Bautista • Desarrollado por Samuel Villanueva
+
+</div>
