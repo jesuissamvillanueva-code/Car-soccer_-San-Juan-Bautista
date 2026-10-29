@@ -26,8 +26,8 @@ Este sistema innovador convierte cualquier teléfono celular en un control de ma
 | :---: | :---: | :---: |
 | ![Car Finish White SJB](car_finish_white_Sjb.jpg) | ![Car View Finish](car_view_finish.jpg) | ![Car View Finish White](car_view_finish_white.jpg) |
 
-### 🌄 Entornos y Pruebas de Campo
-| Vista de Entorno (Sky) | Vista de Entorno (Sky Red) |
+### 🦅 Perspectiva Cenital y Ensamblaje Interno (Vista desde el Cielo)
+| Chasis Base Estructural (Blanco) | Chasis y Electrónica Integrada (Rojo) |
 | :---: | :---: |
 | ![Car View Sky](car_view_sky.jpg) | ![Car View Sky Red](car_view_sky_red.jpg) |
 
@@ -37,9 +37,9 @@ Este sistema innovador convierte cualquier teléfono celular en un control de ma
 | ![Control SJB](control_SJB%20.jpg) | ![Control Sam](control_sam%20.jpg) |
 
 ### 📐 Modelo 3D del Carro
-| Modelo 3D Estructural |
+| Diseño y Proyección 3D |
 | :---: |
-| ![Modelo 3D Car](modelo%203d%20car.jpg) |
+| ![Modelo 3D Car](modelo%203d%20car%20.jpg) |
 
 ---
 
