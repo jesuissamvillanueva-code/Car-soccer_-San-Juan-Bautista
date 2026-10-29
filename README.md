@@ -24,29 +24,29 @@ Este sistema innovador convierte cualquier teléfono celular en un control de ma
 ### 🏆 Vistas Principales del Robot
 | Vista Principal (Blanco SJB) | Vista de Acabado General | Vista de Acabado Blanco |
 | :---: | :---: | :---: |
-| ![Car Finish White SJB](car_finish_white_Sjb.jpg) | ![Car View Finish](car_view_finish.jpg) | ![Car View Finish White](car_view_finish_white.jpg) |
+| ![Car Finish White SJB](assets/car_finish_white_Sjb.jpg) | ![Car View Finish](assets/car_view_finish.jpg) | ![Car View Finish White](assets/car_view_finish_white.jpg) |
 
 ### 🦅 Perspectiva Cenital y Ensamblaje Interno (Vista desde el Cielo)
 | Chasis Base Estructural (Blanco) | Chasis y Electrónica Integrada (Rojo) |
 | :---: | :---: |
-| ![Car View Sky](car_view_sky.jpg) | ![Car View Sky Red](car_view_sky_red.jpg) |
+| ![Car View Sky](assets/car_view_sky.jpg) | ![Car View Sky Red](assets/car_view_sky_red.jpg) |
 
 ### 🕹️ Interfaces de Control Táctil Web
 | Interfaz de Control (SJB) | Interfaz de Control (Sam) |
 | :---: | :---: |
-| ![Control SJB](control_SJB%20.jpg) | ![Control Sam](control_sam%20.jpg) |
+| ![Control SJB](assets/control_SJB%20.jpg) | ![Control Sam](assets/control_sam%20.jpg) |
 
 ### 📐 Modelo 3D del Carro
 | Diseño y Proyección 3D |
 | :---: |
-| ![Modelo 3D Car](modelo%203d%20car%20.jpg) |
+| ![Modelo 3D Car](assets/modelo%203d%20car%20.jpg) |
 
 ---
 
 ## 📊 **Diagramas y Documentación Técnica**
 
 El esquema completo de conexiones y la arquitectura electrónica del vehículo se pueden consultar en el siguiente documento oficial:
-- 📄 [Descargar / Ver Diagrama del Carro Móvil (PDF)](diagrama_carro_movil.pdf)
+- 📄 [Descargar / Ver Diagrama del Carro Móvil (PDF)](hardware/diagrama_carro_movil.pdf)
 
 ---
 
@@ -88,12 +88,12 @@ El esquema completo de conexiones y la arquitectura electrónica del vehículo s
 Los archivos se encuentran distribuidos según su modalidad de red y despliegue:
 
 ### 🌐 Códigos con Creación de Red Propia (Access Point)
-- `CAR_SOCCER_SJB.ino` - Código principal adaptado con identidad institucional y servidor web integrado.
-- `CAR_SOCCER_Kali.ino` - Versión alternativa de pruebas y despliegue del sistema.
+- `src/CAR_SOCCER_SJB.ino` - Código principal adaptado con identidad institucional y servidor web integrado.
+- `src/CAR_SOCCER_Kali.ino` - Versión alternativa de pruebas y despliegue del sistema.
 
 ### 📡 Códigos de Respuesta Local (Cuando el ESP32 emite la red Wi-Fi y gestiona clientes)
-- `codigo_local_sjb` - Lógica de control optimizada para la institución educativa.
-- `codigo_local_Sam` - Versión de desarrollo local orientada al rendimiento del servidor web.
+- `src/codigo_local_sjb` - Lógica de control optimizada para la institución educativa.
+- `src/codigo_local_Sam` - Versión de desarrollo local orientada al rendimiento del servidor web.
 
 ---
 
