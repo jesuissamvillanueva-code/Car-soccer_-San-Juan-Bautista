@@ -1,4 +1,4 @@
-# ⚽ 🚗 **Car Soccer - Robot Móvil ESP32** 🤖⚡
+# ⚽ 🚗 Car Soccer - Robot Móvil ESP32 🤖⚡
 
 <div align="center">
 
@@ -9,22 +9,30 @@
 
 </div>
 
-Repositorio oficial del proyecto **Cas Soccer**, un vehículo robótico móvil y autónomo controlado de forma inalámbrica a través de un servidor web embebido en un **ESP32**, diseñado e implementado con orgullo para la **I.E. San Juan Bautista - Huariaca**. 🎓🏆
+Repositorio oficial del proyecto **Car Soccer**, un vehículo robótico móvil controlado de forma inalámbrica mediante un servidor web embebido en un **ESP32**, diseñado e implementado para la **I.E. JEC San Juan Bautista - Huariaca**. 🎓🏆
 
 ---
 
 ## 🌟 **Descripción del Proyecto**
 
-Este sistema innovador convierte un teléfono celular en un control de mando inalámbrico mediante una red local Wi-Fi. La interfaz web está alojada directamente dentro de la memoria flash del **ESP32**, lo que permite pilotar el robot en tiempo real desde cualquier smartphone o tablet con navegador web utilizando un **Joystick táctil interactivo** de alta precisión.
+Este sistema convierte cualquier teléfono celular en un control de mando inalámbrico a través de una red local Wi-Fi. La interfaz web interactiva está alojada directamente en la memoria flash del **ESP32**, permitiendo pilotar el robot en tiempo real mediante un **Joystick táctil de alta precisión**.
+
+---
+
+## 📸 **Galería y Vistas del Proyecto**
+
+| Vista General del Robot | Interfaz de Control |
+| :---: | :---: |
+| ![Car View Finish](assets/images/car_view_finish.jpg) | ![Control SJB](assets/images/control_sjb.jpg) |
 
 ---
 
 ## ✨ **Características Principales**
 
-* 📶 **Control Inalámbrico Wi-Fi Directo:** El microcontrolador gestiona la conexión de red para una respuesta inmediata sin retardos.
-* 🕹️ **Joystick Virtual Táctil Inteligente:** Interfaz fluida desarrollada en HTML5/JS que detecta gestos táctiles (Touch/Mouse) y regresa automáticamente al centro ejecutando un **freno de seguridad** al soltarlo.
-* 🎨 **Diseño Cyber-Futurista & Identidad Institucional:** Interfaz gráfica optimizada con colores neón (`#00f0ff`), efectos de luz ambiental y la **insignia oficial incrustada** de la I.E. San Juan Bautista.
-* ⚡ **Control de Motores PWM Avanzado:** Regulación de velocidad y maniobras de giro diferencial gracias al uso eficiente del Driver L298N Mini / MX1508.
+- 📶 **Control Inalámbrico Wi-Fi Directo:** Red local propia alojada en el ESP32 para una respuesta inmediata sin retardos.
+- 🕹️ **Joystick Virtual Táctil:** Interfaz fluida desarrollada en HTML5/JS que detecta gestos y ejecuta un **freno de seguridad automático** al soltarlo.
+- 🎨 **Diseño Cyber-Futurista & Identidad Institucional:** Interfaz gráfica optimizada con colores neón y la **insignia oficial incrustada** de la I.E. San Juan Bautista.
+- ⚡ **Control de Motores PWM:** Regulación de maniobras gracias al driver L298N Mini / MX1508.
 
 ---
 
@@ -32,11 +40,11 @@ Este sistema innovador convierte un teléfono celular en un control de mando ina
 
 | Componente | Descripción / Modelo |
 | :--- | :--- |
-| 🧠 **Microcontrolador** | ESP32 DevKit V1 (Wi-Fi / Bluetooth integrado) |
+| 🧠 **Microcontrolador** | ESP32 DevKit V1 (Wi-Fi integrado) |
 | ⚙️ **Driver de Motores** | L298N Mini / MX1508 (Control Puente H) |
 | 🔋 **Alimentación** | Batería recargable con regulador de voltaje L7805CV |
-| 🤖 **Actuadores** | Motores DC 6V con caja reductora (Tracción diferencial) |
-| 📐 **Chasis** | Diseño estructural personalizado y optimizado |
+| 🤖 **Actuadores** | Motores DC 6V con caja reductora |
+| 📐 **Chasis** | Estructura personalizada optimizada |
 
 ---
 
@@ -52,17 +60,14 @@ Este sistema innovador convierte un teléfono celular en un control de mando ina
 
 ---
 
-## 💻 **Instrucciones de Instalación y Uso**
+## 💻 **Código Fuente Principal**
 
-### 1️⃣ Preparación del Entorno
-1. Asegúrate de tener instalado el [Arduino IDE](https://www.arduino.cc/en/software).
-2. Instala el soporte para placas **ESP32** en el gestor de tarjetas.
+Los códigos fuente oficiales se encuentran organizados dentro de la carpeta [src/](src/)[cite: 2]:
+* `src/CAR_SOCCER_SJB.ino` (Código principal optimizado con servidor web e IP fija `192.168.10.1`)
+* `src/CAR_SOCCER_Kali.ino`
+* `src/codigo_local_Sam.ino`
+* `src/codigo_local_sjb.ino`
 
-### 2️⃣ Clonar o Descargar el Código
-* Descarga el código fuente de este repositorio y ábrelo con tu Arduino IDE.
+---
 
-### 3️⃣ Configurar las Credenciales de Red
-Busca las siguientes líneas en el código e introduce los datos de tu red Wi-Fi (o la red compartida desde tu celular):
-```cpp
-const char* ssid = "Tu_Red_WiFi";
-const char* password = "Tu_Contraseña";
+<footer>CAR SAN JUAN BAUTISTA • ESP32 LOCALHOST</footer>
