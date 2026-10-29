@@ -46,7 +46,7 @@ Este sistema innovador convierte cualquier teléfono celular en un control de ma
 ## 📊 **Diagramas y Documentación Técnica**
 
 El esquema completo de conexiones y la arquitectura electrónica del vehículo se pueden consultar en el siguiente documento oficial:
-* 📄 [Descargar / Ver Diagrama del Carro Móvil (PDF)](diagrama_carro_movil.pdf)
+- 📄 [Descargar / Ver Diagrama del Carro Móvil (PDF)](diagrama_carro_movil.pdf)
 
 ---
 
@@ -88,12 +88,12 @@ El esquema completo de conexiones y la arquitectura electrónica del vehículo s
 Los archivos se encuentran distribuidos según su modalidad de red y despliegue:
 
 ### 🌐 Códigos con Creación de Red Propia (Access Point)
-* `CAR_SOCCER_SJB.ino` - Código principal adaptado con identidad institucional y servidor web integrado.
-* `CAR_SOCCER_Kali.ino` - Versión alternativa de pruebas y despliegue del sistema.
+- `CAR_SOCCER_SJB.ino` - Código principal adaptado con identidad institucional y servidor web integrado.
+- `CAR_SOCCER_Kali.ino` - Versión alternativa de pruebas y despliegue del sistema.
 
 ### 📡 Códigos de Respuesta Local (Cuando el ESP32 emite la red Wi-Fi y gestiona clientes)
-* `codigo_local_sjb` - Lógica de control optimizada para la institución educativa.
-* `codigo_local_Sam` - Versión de desarrollo local orientada al rendimiento del servidor web.
+- `codigo_local_sjb` - Lógica de control optimizada para la institución educativa.
+- `codigo_local_Sam` - Versión de desarrollo local orientada al rendimiento del servidor web.
 
 ---
 
@@ -101,6 +101,6 @@ Los archivos se encuentran distribuidos según su modalidad de red y despliegue:
 
 <div align="center">
 
-### Car San Juan Bautista • Desarrollado por Samuel Villanueva
+### Car San Juan Bautista • By Samuel Villanueva
 
 </div>
